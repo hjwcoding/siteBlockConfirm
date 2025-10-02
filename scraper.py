@@ -5,57 +5,58 @@ from datetime import datetime
 from tuples_list import tuples_list
 
 async def check_port(ip: str, port: str) -> str:
-        async with async_playwright() as p:
-            while True:
-                # browser = await p.chromium.launch(headless=False)  # headless=False면 실제 창 보임
-                browser = await p.chromium.launch(headless=False, slow_mo=500) # slow_mo: 동작 속도 조절(0.5초)
+    async with async_playwright() as p:
+        while True:
+            # browser = await p.chromium.launch(headless=False)  # headless=False면 실제 창 보임
+            browser = await p.chromium.launch(headless=False, slow_mo=500) # slow_mo: 동작 속도 조절(0.5초)
+            page = await browser.new_page()
+            await page.goto("https://ko.rakko.tools/tools/15/")  # 포트 검사기 메인
 
-                page = await browser.new_page()
-                await page.goto("https://ko.rakko.tools/tools/15/")  # 포트 검사기 메인
-
-                html = await page.content()
-                if "Begin" in html:
-                    print("과부하로 인한 캡차 발생...")
-                    while True:
-                        print("10초 대기 후 재시도...")
-                        await page.wait_for_timeout(10000)
-                        html = await page.goto("https://ko.rakko.tools/tools/15/")  # 포트 검사기 메인
-                        html = await page.content()
-                        if "검사" in html:
-                            break
-
-                # 입력창 찾기 (보통 첫 번째 input이 IP, 두 번째 input이 포트)
-
-                # IP/Host 입력
-                await page.fill("#textHostOrIp", ip)   # 원하는 IP 또는 호스트
-                # 포트 입력
-                await page.fill("#portNumbers", port)     # 원하는 포트들 (쉼표로 구분 가능)
-                # "검사" 버튼 클릭
-
-                try:
-                    html = await page.click("#jsCheckPort")
-                    print("버튼 클릭 성공")
-                    # 결과 span(#ps_res_1)이 표시될 때까지 대기
-                    await page.wait_for_selector("#ps_res_1", timeout=30000)
+            html = await page.content()
+            if "Begin" in html:
+                print("과부하로 인한 캡차 발생...")
+                while True:
+                    print("10초 대기 후 재시도...")
+                    await page.wait_for_timeout(10000)
+                    html = await page.goto("https://ko.rakko.tools/tools/15/")  # 포트 검사기 메인
                     html = await page.content()
-                    with open("결과.txt", "w", encoding="utf-8") as f:
-                        f.write(html)
-                    error = await page.query_selector_all("div.error_area p")
+                    if "검사" in html:
+                        break
 
-                    if "데이터 수집에 실패했습니다. 입력 내용에 오류가 없는지 확인하십시오." in error:
-                        print("데이터 수집에 실패로 인한 재처리")
-                        await browser.close()
-                        continue
-                    # span의 텍스트 추출
-                    result_text = await page.locator("#ps_res_1").inner_text()
+            # 입력창 찾기 (보통 첫 번째 input이 IP, 두 번째 input이 포트)
 
-                    print("검사 결과:", result_text)   # open / closed 등 출력됨
-                except:
-                    await page.locator('button:has-text("검사")').click()
-                    print("버튼 클릭 실패")
+            # IP/Host 입력
+            await page.fill("#textHostOrIp", ip)   # 원하는 IP 또는 호스트
+            # 포트 입력
+            await page.fill("#portNumbers", port)     # 원하는 포트들 (쉼표로 구분 가능)
+            # "검사" 버튼 클릭
 
+            try:
+                html = await page.click("#jsCheckPort")
+                print("버튼 클릭 성공")
+                # 결과 span(#ps_res_1)이 표시될 때까지 대기
+                await page.wait_for_selector("#ps_res_1", timeout=30000)
+                html = await page.content()
+
+                # with open("결과.txt", "w", encoding="utf-8") as f:
+                #     f.write(html)
+
+                error = await page.query_selector_all("div.error_area p")
+
+                if "데이터 수집에 실패했습니다. 입력 내용에 오류가 없는지 확인하십시오." in error:
+                    print("데이터 수집에 실패로 인한 재처리")
+                    await browser.close()
+                    continue
+
+                # span의 텍스트 추출
+                result_text = await page.locator("#ps_res_1").inner_text()
+                print("검사 결과:", result_text)   # open / closed 등 출력됨
+            except:
+                print("버튼 클릭 실패")
                 await browser.close()
-                return result_text
+                continue
+            await browser.close()
+            return result_text
 
 async def run_checks():
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -75,6 +76,7 @@ async def run_checks():
                 f.write(f"    IP: {t[4]}:{t[5]}\n")
                 f.write(f"    PORT: {t[5]}\n")
                 f.write(f"    URL: {t[6]}\n")
+                f.write(f"    STATUS: {result}")
                 f.write("-" * 80 + "\n")
 
                 # f.write(f"\n총 {len(result_list)}개 항목 검증 완료\n")
