@@ -4,14 +4,10 @@ from playwright.async_api import async_playwright
 from datetime import datetime
 from tuples_list import tuples_list
 
-async def check_port(ip: str, port: str) -> str:
-    async with async_playwright() as p:
+async def check_port(page: str, ip: str, port: str) -> str:
+    async with async_playwright():
         while True:
-            # browser = await p.chromium.launch(headless=False)  # headless=False면 실제 창 보임
-            browser = await p.chromium.launch(headless=False, slow_mo=500) # slow_mo: 동작 속도 조절(0.5초)
-            page = await browser.new_page()
             await page.goto("https://ko.rakko.tools/tools/15/")  # 포트 검사기 메인
-
             html = await page.content()
             if "Begin" in html:
                 print("과부하로 인한 캡차 발생...")
@@ -33,59 +29,74 @@ async def check_port(ip: str, port: str) -> str:
 
             try:
                 html = await page.click("#jsCheckPort")
-                print("버튼 클릭 성공")
                 # 결과 span(#ps_res_1)이 표시될 때까지 대기
                 await page.wait_for_selector("#ps_res_1", timeout=30000)
                 html = await page.content()
+                print("버튼 클릭 성공")
 
                 # with open("결과.txt", "w", encoding="utf-8") as f:
                 #     f.write(html)
-
-                error = await page.query_selector_all("div.error_area p")
-
-                if "데이터 수집에 실패했습니다. 입력 내용에 오류가 없는지 확인하십시오." in error:
-                    print("데이터 수집에 실패로 인한 재처리")
-                    await browser.close()
-                    continue
 
                 # span의 텍스트 추출
                 result_text = await page.locator("#ps_res_1").inner_text()
                 print("검사 결과:", result_text)   # open / closed 등 출력됨
             except:
                 print("버튼 클릭 실패")
-                await browser.close()
+                error = await page.query_selector("div.error_area p")
+                text = ''
+                if error:
+                    text = await error.inner_text()
+                    print(text)
+                print("에러 메시지:", text)
+
+                # 아래 오류는 포트자체가 열려있지 않을 때 발생하는 오류이다.
+                # 텔넷 명령어로 확인해 봄.
+
+                if "데이터 수집에 실패했습니다. 입력 내용에 오류가 없는지 확인하십시오." in text:
+                    print("해당 IP/포트는 존재하지 않는 항목입니다.")
+                    # await browser.close()
+                    result_text = "해당 IP/포트는 존재하지 않는 항목입니다."
+                    await page.reload()
+                    return result_text
+                # await browser.close()
                 continue
-            await browser.close()
+            # await browser.close()
             return result_text
 
 async def run_checks():
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    for t in tuples_list:
-        result = await check_port(t[4], t[5])
-        if result.lower() != "open":
-            # send_alert(ip, port, result)  # 알림 함수 호출
-            print(f"{t[4]}:{t[5]} 🚨 {result}")
-            # 현재 시간으로 파일명 생성
-            txt_filename = f"결과_{timestamp}.txt"
-            with open(txt_filename, 'a', encoding='utf-8') as f:
-                f.write("=" * 80 + "\n")
-                f.write("검증 결과 리포트\n")
-                f.write("=" * 80 + "\n\n")
-                f.write(f"{t[0]} - {t[1]}\n")
-                f.write(f"    업무명: {t[2]}\n")
-                f.write(f"    IP: {t[4]}:{t[5]}\n")
-                f.write(f"    PORT: {t[5]}\n")
-                f.write(f"    URL: {t[6]}\n")
-                f.write(f"    STATUS: {result}")
-                f.write("-" * 80 + "\n")
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False, slow_mo=500)  # headless=False면 실제 창 보임
+        # browser = await p.chromium.launch(headless=True, slow_mo=500) # slow_mo: 동작 속도 조절(0.5초)
+        page = await browser.new_page()
+        while True:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            for t in tuples_list:
+                result = await check_port(page, t[4], t[5])
+                print(f"결과값 :::: 🚨 {result}")
+                if result.lower() != "open" :
+                    # send_alert(ip, port, result)  # 알림 함수 호출
+                    print(f"{t[4]}:{t[5]} 🚨 {result}")
+                    # 현재 시간으로 파일명 생성
+                    txt_filename = f"결과_{timestamp}.txt"
+                    with open(txt_filename, 'a', encoding='utf-8') as f:
+                        f.write("=" * 80 + "\n")
+                        f.write("검증 결과 리포트\n")
+                        f.write("=" * 80 + "\n\n")
+                        f.write(f"{t[0]} - {t[1]}\n")
+                        f.write(f"    업무명: {t[2]}\n")
+                        f.write(f"    IP: {t[4]}:{t[5]}\n")
+                        f.write(f"    PORT: {t[5]}\n")
+                        f.write(f"    URL: {t[6]}\n")
+                        f.write(f"    STATUS: {result}")
+                        f.write("-" * 80 + "\n")
 
-                # f.write(f"\n총 {len(result_list)}개 항목 검증 완료\n")
-
-            print(f"✅ 텍스트 파일 저장 완료: {txt_filename}")
-        else:
-            print(f"{t[4]}:{t[5]} ✅ open")
-    else:
-        print("검증이 완료 되었습니다")
+                        # f.write(f"\n총 {len(result_list)}개 항목 검증 완료\n")
+                    print(f"✅ 텍스트 파일 저장 완료: {txt_filename}")
+                else:
+                    print(f"{t[4]}:{t[5]} ✅ open")
+            else:
+                print("검증이 완료 되었습니다")
+                break
 
 if __name__ == "__main__":
     asyncio.run(run_checks())
