@@ -1,0 +1,14 @@
+   1. 프로젝트 내려받기 (Git Clone)
+  `cmd
+      python -m venv venv
+      `
+
+  4.  가상 환경 활성화
+      `cmd
+      venv\Scripts\activate        
+      `
+
+  5.  필요한 라이브러리 한번에 설치
+      `cmd
+      pip install -r requirements.txt
+      `
