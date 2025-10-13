@@ -5,7 +5,7 @@ if exist FirewallChecker.spec del FirewallChecker.spec
 
 echo.
 echo [STEP 2/3] Building executable with PyInstaller...
-call venv\Scripts\pyinstaller.exe --windowed --name FirewallChecker --hidden-import="playwright" --hidden-import="scraper" --hidden-import="scheduler" --hidden-import="tuples_list" --hidden-import="alarm" gui.py
+call venv\Scripts\pyinstaller.exe --windowed --name FirewallChecker --hidden-import="playwright" --hidden-import="scraper" --hidden-import="scheduler" --hidden-import="nslookup_ipv4" --add-data "tuples_list.json;." --add-data "domain_list.json;." gui.py
 
 rem Check if the build was successful before copying
 if not exist "dist\FirewallChecker" (
