@@ -7,7 +7,7 @@ def nslookup(domain, logger=print):
     try:
         # 도메인에서 불필요한 문자(예: 콤마) 제거
         # https:// 제거해야함
-        cleaned_domain = domain.strip().replace(',', '')
+        cleaned_domain = domain.strip().replace(',', '').replace('https://', '').split('/')[0]
         if not cleaned_domain:
             return "빈 도메인입니다. domain_list.py 파일을 확인하세요."
         ip_address = socket.gethostbyname(cleaned_domain)

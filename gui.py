@@ -113,6 +113,7 @@ class PortCheckerApp:
         domain_list_tab = ttk.Frame(self.notebook, padding="5")
         self.notebook.add(domain_list_tab, text="도메인 목록")
         self.domain_list_tree = self.create_treeview(domain_list_tab)
+        self.domain_list_tree.tag_configure('failed', background='lightcoral')
         self.add_crud_buttons(domain_list_tab, self.add_domain_item, self.edit_domain_item, self.delete_domain_item)
 
         log_frame = ttk.LabelFrame(main_frame, text="실시간 로그", padding="10")
@@ -238,21 +239,37 @@ class PortCheckerApp:
             self.root.after(0, lambda: [self.run_full_check_button.config(state='normal'), self.domain_check_button.config(state='normal')])
 
     def run_domain_check(self):
+        # Clear previous highlights
+        for item_id in self.domain_list_tree.get_children():
+            self.domain_list_tree.item(item_id, tags=())
+            
         self.log("도메인 점검 (NSLOOKUP)을 시작합니다...")
         self.run_full_check_button.config(state='disabled'); self.domain_check_button.config(state='disabled')
         domain_thread = threading.Thread(target=self._run_nslookup_check)
         domain_thread.daemon = True; domain_thread.start()
 
     def _run_nslookup_check(self):
+        failed_item_iids = []
         try:
-            for t in self.domain_list:
+            for i, t in enumerate(self.domain_list):
                 domain = t[6]
-                if domain: nslookup(domain, logger=self.log)
+                if domain:
+                    if nslookup(domain, logger=self.log) is None:
+                        failed_item_iids.append(str(i))
             self.log("도메인 점검이 완료되었습니다.")
         except Exception as e:
             self.log(f"오류 발생: {e}")
         finally:
-            self.root.after(0, lambda: [self.run_full_check_button.config(state='normal'), self.domain_check_button.config(state='normal')])
+            self.root.after(0, self.update_ui_after_domain_check, failed_item_iids)
+
+    def update_ui_after_domain_check(self, failed_item_iids):
+        self.run_full_check_button.config(state='normal')
+        self.domain_check_button.config(state='normal')
+        if failed_item_iids:
+            self.log(f"실패한 도메인 {len(failed_item_iids)}개에 음영을 적용합니다.")
+            for item_id in failed_item_iids:
+                if self.domain_list_tree.exists(item_id):
+                    self.domain_list_tree.item(item_id, tags=('failed',))
 
     def save_changes(self):
         self.log("변경사항을 JSON 파일에 저장합니다...")
