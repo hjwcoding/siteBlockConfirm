@@ -21,3 +21,20 @@ domain_list.py
 # IDEs and editors
 .vscode/
 .idea/
+
+# Node.js
+node_modules/
+**/node_modules/
+firewall-checker-nodejs/package-lock.json
+firewall-checker-web/package-lock.json
+
+# Build artifacts
+**/dist/
+**/build/
+
+# Editor/Tool specific
+.restclient/
+.claude/
+
+# Temporary files
+*.xlsx
